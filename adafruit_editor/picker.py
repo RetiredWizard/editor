@@ -32,28 +32,62 @@ def has_good_extension(filename):
 def picker(stdscr, options, notes=(), start_idx=0):
     stdscr.erase()
     stdscr.addstr(curses.LINES - 1, 0, "Enter: select | ^C: quit")
-    del options[curses.LINES - 1 :]
+    window_end = max(curses.LINES - 2, start_idx)
+    window_start = window_end - (curses.LINES - 2)
     for row, option in enumerate(options):
         if row < len(notes) and (note := notes[row]):
             option = f"{option} {note}"
 
-        stdscr.addstr(row, 3, option)
+        if window_start <= row and row <= window_end:
+            stdscr.addstr(row, 3, option)
 
-    old_idx = None
+    old_winidx = None
     idx = start_idx
+    old_idx = idx
+    window_idx = min(idx, window_end)
     while True:
-        if idx != old_idx:
-            if old_idx is not None:
-                stdscr.addstr(old_idx, 0, "  ")
-            stdscr.addstr(idx, 0, "=>")
-            old_idx = idx
+        if window_idx != old_winidx:
+            if old_winidx is not None:
+                stdscr.addstr(old_winidx, 0, "  ")
+            stdscr.addstr(window_idx, 0, "=>")
+            old_winidx = window_idx
 
         k = stdscr.getkey()
 
         if k == "KEY_DOWN":
             idx = min(idx + 1, len(options) - 1)
+            if window_idx >= curses.LINES - 2:
+                if idx != old_idx:
+                    stdscr.addstr(window_idx, 0, "  ")
+                    stdscr.move(curses.LINES,0)
+                    print(end=f'\033[2K\033D')
+                    stdscr.addstr(curses.LINES - 1, 0, "Enter: select | ^C: quit")
+                    if idx < len(notes) and (note := notes[idx]):
+                        option = f"{options[idx]} {note}"
+                    else:
+                        option = options[idx]
+                    stdscr.addstr(window_idx, 3, option)
+                    stdscr.addstr(window_idx, 0, "=>")
+            else:
+                window_idx = window_idx + 1
+            old_idx = idx
         elif k == "KEY_UP":
             idx = max(idx - 1, 0)
+            if window_idx <= 0:
+                if idx != old_idx:
+                    stdscr.addstr(window_idx, 0, "  ")
+                    stdscr.move(0,0)
+                    print(end=f'\033M')
+                    stdscr.addstr(curses.LINES - 1, 0, "Enter: select | ^C: quit")
+                    if idx < len(notes) and (note := notes[idx]):
+                        option = f"{options[idx]} {note}"
+                    else:
+                        option = options[idx]
+                    stdscr.addstr(window_idx, 3, option)
+                    stdscr.addstr(window_idx, 0, "=>")
+            else:
+                window_idx = window_idx - 1
+            old_idx = idx
         elif k == "\n":
             return options[idx]
 

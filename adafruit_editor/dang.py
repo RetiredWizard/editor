@@ -3,7 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 import select
+import supervisor
 import sys
+try:
+    from displayio import CIRCUITPYTHON_TERMINAL as TERM
+    from terminalio import FONT
+except:
+    pass
 
 try:
     import termios
@@ -31,9 +37,42 @@ except ImportError:
     def _blocking():
         pass
 
+if 'height' in dir(supervisor.runtime.display):
+    dhigh = supervisor.runtime.display.height
+    dwide = supervisor.runtime.display.width
 
-LINES = 24
-COLS = 80
+    LINES = round(dhigh/(FONT.bitmap.height*TERM.scale))-1
+    COLS = round(dwide/((FONT.bitmap.width/95)*TERM.scale))-2
+else:
+    print("Screen set to 24 rows, 80 col. Press any key to continue...",end="")
+    sys.stdout.write('\x1b[2K')
+    sys.stdout.write('\x1b[999;999H\x1b[6n')
+    pos = ''
+    char = ''
+    for i in range(100):
+        if supervisor.runtime.serial_bytes_available:
+            try:
+                char = sys.stdin.read(1) ## expect ESC[yyy;xxxR
+                break
+            except:
+                pass
+
+    if char != '\x1b':
+        LINES = 24
+        COLS = 80
+    else:
+        while char != 'R':
+            pos += char
+            char = sys.stdin.read(1)
+        print()
+
+        COLS = int(pos.lstrip("\n\x1b[").split(';')[1],10)
+        LINES = int(pos.lstrip("\n\x1b[").split(';')[0],10)
+
+        if COLS < 1:
+            COLS = 80
+        if LINES < 1:
+            LINES = 24
 
 special_keys = {
     "\x1b": ...,  # all prefixes of special keys must be entered as Ellipsis

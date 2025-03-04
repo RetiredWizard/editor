@@ -49,14 +49,20 @@ else:
     sys.stdout.write('\x1b[999;999H\x1b[6n')
     pos = ''
     char = ''
-    for i in range(100):
-        if supervisor.runtime.serial_bytes_available:
-            try:
-                char = sys.stdin.read(1) ## expect ESC[yyy;xxxR
-                break
-            except:
-                pass
 
+    spoll = select.poll()
+    spoll.register(sys.stdin,select.POLLIN)
+
+    retval = spoll.poll(100)
+    spoll.unregister(sys.stdin)
+
+    char = ""
+    if retval:
+        try:
+            char = sys.stdin.read(1) ## expect ESC[yyy;xxxR
+        except:
+            pass
+    
     if char != '\x1b':
         LINES = 24
         COLS = 80
